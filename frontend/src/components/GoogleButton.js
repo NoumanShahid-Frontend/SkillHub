@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { authAPI } from '../lib/auth';
+import { loadGoogleAPI, initGoogleAuth } from '../apis/googleAuth';
 
 export default function GoogleButton({ onSuccess, type = 'login' }) {
   const [loading, setLoading] = useState(false);
@@ -8,61 +9,45 @@ export default function GoogleButton({ onSuccess, type = 'login' }) {
   const handleGoogleAuth = async () => {
     setLoading(true);
     try {
-      // Load Google API
       if (!window.google) {
         await loadGoogleAPI();
       }
 
-      window.google.accounts.oauth2.initTokenClient({
-        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-        scope: 'email profile',
-        redirect_uri: window.location.origin,
-        callback: async (response) => {
-          if (response.access_token) {
-            try {
-              const data = await authAPI.googleAuth(response.access_token);
-              if (data.success) {
-                authAPI.setAuth(data.token, data.user);
-                onSuccess?.(data);
-              } else {
-                throw new Error(data.message);
-              }
-            } catch (error) {
-              console.error('Google auth error:', error);
-            }
-          } else if (response.error) {
-            console.log('Google auth cancelled or failed:', response.error);
+      const handleSuccess = async (accessToken) => {
+        try {
+          const data = await authAPI.googleAuth(accessToken);
+          if (data.success) {
+            authAPI.setAuth(data.token, data.user);
+            onSuccess?.(data);
+          } else {
+            throw new Error(data.message);
           }
-          setLoading(false);
-        },
-      }).requestAccessToken();
+        } catch (error) {
+          console.error('Google auth error:', error);
+        }
+        setLoading(false);
+      };
+
+      const handleError = (error) => {
+        console.log('Google auth cancelled or failed:', error);
+        setLoading(false);
+      };
+
+      initGoogleAuth(handleSuccess, handleError).requestAccessToken();
     } catch (error) {
       console.error('Google auth error:', error);
       setLoading(false);
     }
   };
 
-  const loadGoogleAPI = () => {
-    return new Promise((resolve) => {
-      if (document.getElementById('google-api')) {
-        resolve();
-        return;
-      }
-      
-      const script = document.createElement('script');
-      script.id = 'google-api';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.onload = resolve;
-      document.head.appendChild(script);
-    });
-  };
+
 
   return (
     <button
       type="button"
       onClick={handleGoogleAuth}
       disabled={loading}
-      className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
+      className="w-full cursor-pointer flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
     >
       {loading ? (
         <div className="flex items-center">
