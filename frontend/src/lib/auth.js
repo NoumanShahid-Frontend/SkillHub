@@ -2,11 +2,15 @@ import { apiClient } from './api';
 
 export const authAPI = {
   register: async (userData) => {
-    return await apiClient.post('/auth/register', userData);
+    return await apiClient.post('/register', userData);
   },
 
   login: async (credentials) => {
-    return await apiClient.post('/auth/login', credentials);
+    return await apiClient.post('/login', credentials);
+  },
+
+  googleAuth: async (token) => {
+    return await apiClient.post('/google', { token });
   },
 
   logout: () => {

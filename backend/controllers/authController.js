@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import jwt from "jsonwebtoken";
+import fetch from "node-fetch";
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password,role } = req.body;
@@ -71,6 +72,65 @@ export const loginUser = async (req, res) => {
             role: user.role,
         },
     })
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const googleAuth = async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    // Verify Google token
+    const response = await fetch(`https://www.googleapis.com/oauth2/v1/userinfo?access_token=${token}`);
+    const googleUser = await response.json();
+
+    if (!googleUser.email) {
+      return res.status(400).json({ message: "Invalid Google token" });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ email: googleUser.email });
+
+    if (!user) {
+      // Create new user
+      const count = await User.countDocuments();
+      const userId = String(count + 1).padStart(3, "0");
+
+      user = await User.create({
+        userId,
+        name: googleUser.name,
+        email: googleUser.email,
+        googleId: googleUser.id,
+        avatar: googleUser.picture,
+        role: 'student'
+      });
+    } else if (!user.googleId) {
+      // Link existing account with Google
+      user.googleId = googleUser.id;
+      user.avatar = googleUser.picture;
+      await user.save();
+    }
+
+    const jwtToken = jwt.sign(
+      { userId: user._id, id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Google authentication successful",
+      token: jwtToken,
+      user: {
+        id: user._id,
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
