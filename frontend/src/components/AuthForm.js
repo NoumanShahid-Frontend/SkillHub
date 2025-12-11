@@ -130,7 +130,7 @@ export default function AuthForm({ type = 'login', onSuccess }) {
         )}
       </button>
 
-      <div className="relative my-6">
+      <div className="relative my-6 mt-2">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-gray-300"></div>
         </div>
